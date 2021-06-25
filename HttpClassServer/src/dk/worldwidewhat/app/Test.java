@@ -30,7 +30,7 @@ public class Test implements IApplication {
                     if(arrArg[i].contains("=")){
                         int pos = arrArg[i].indexOf("=");
                         strData += "{\"" + arrArg[i].substring(0, pos) + 
-                                    "\":\"" + arrArg[i].substring(pos+1) + "\"}";
+                                    "\":\"" + arrArg[i].substring(pos + 1) + "\"}";
                     } else {
                         strData += "\"" + arrArg[i] + "\"";
                     }

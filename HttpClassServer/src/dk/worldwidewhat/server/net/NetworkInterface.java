@@ -5,8 +5,6 @@
  */
 package dk.worldwidewhat.server.net;
 
-
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.logging.Level;
@@ -18,7 +16,7 @@ import java.util.logging.Logger;
  */
 public class NetworkInterface extends Thread {
     private final int _port;
-    private boolean _running = false;
+    private volatile boolean _running = false;
     private NetworkClient _networkClients[] = new NetworkClient[10];
 
     
@@ -61,13 +59,17 @@ public class NetworkInterface extends Thread {
         
         for(int i=0; i < _networkClients.length; i++) {
             if(_networkClients[i] != null){
-                _networkClients[i].close();
+                try {
+                    _networkClients[i].close();
+                } catch (Exception ex) {
+                    Logger.getLogger(NetworkInterface.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 _networkClients[i].interrupt();
                 _networkClients[i] = null;
             }
         }        
     }
-/*    
+    
     @Override
     protected void finalize() throws Throwable {
         _running = false;
@@ -80,5 +82,5 @@ public class NetworkInterface extends Thread {
         }
         super.finalize();
     }    
-*/
+
 }

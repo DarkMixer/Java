@@ -19,12 +19,12 @@ import java.util.logging.Logger;
  *
  * @author lh
  */
-public class NetworkClient extends Thread {
+public class NetworkClient extends Thread implements AutoCloseable {
     //region Private declares
     private Socket _socket;
     private int _stage = 0;
     private String _requestPath;
-    
+    private String _htmlVersion;
     //endregion
     
     /** Class constructor
@@ -33,8 +33,8 @@ public class NetworkClient extends Thread {
         _socket = socket;
     }
     
-   
-    public void close(){
+    @Override
+    public void close() throws Exception {
         if(_socket != null) {
             try{
                 _socket.close();
@@ -53,7 +53,9 @@ public class NetworkClient extends Thread {
             if(strArr[0].equals("GET") || strArr[0].equals("POST")) {
                 if(strArr[1].isEmpty()) return false;
                 _requestPath = strArr[1];
-                if(!strArr[2].equals("HTTP/1.1")) return false;
+                if(strArr[2].equals("HTTP/1.1") || strArr[2].equals("HTTP/1.0"))
+                    _htmlVersion = strArr[2];
+                else return false;
             } else return false;
         } else {
             
@@ -116,16 +118,16 @@ public class NetworkClient extends Thread {
                         System.out.println("Class cast");
                         String response = cls.execute(args);
 
-                        out.println("HTTP/1.1 200 OK\n" + 
+                        out.println(_htmlVersion + " 200 OK\n" + 
                                     "Date: " + formatter.format(date) + "\n" +
                                     "Server: BirdFlipper\n" +
                                     "Content-Length: " + response.length() + "\n" +
                                     "Connection: close\n" +
-                                    "Content-Type: application/json; charset=iso-8859-1\n" +
+                                        "Content-Type: application/json; charset=utf-8\n" +
                                     "\n" + response);                        
                         
                     } catch(Exception fex) {
-                        out.println("HTTP/1.1 404 Not Found");
+                        out.println(_htmlVersion + " 404 Not Found");
                     }
                     
                 } else {
@@ -136,10 +138,9 @@ public class NetworkClient extends Thread {
 
             in.close();
             out.close();        
-            
+            close();
         } catch (Exception ex) {
             Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
         }
-        close();
     }    
 }
