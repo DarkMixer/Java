@@ -50,4 +50,10 @@ public class Test implements IApplication {
         return execute("");
     }    
     
+    public String execute(String data, byte[] binary){
+        if(binary != null){
+            System.out.println(new String(binary));
+        }
+        return execute(data);
+    }
 }

@@ -12,4 +12,5 @@ package dk.worldwidewhat.app;
 public interface IApplication {
    public String execute();
    public String execute(String data);
+   public String execute(String data, byte[] binary);
 }
