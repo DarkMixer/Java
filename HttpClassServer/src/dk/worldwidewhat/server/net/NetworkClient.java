@@ -5,9 +5,8 @@
  */
 package dk.worldwidewhat.server.net;
 
+import dk.worldwidewhat.server.io.Reader;
 import dk.worldwidewhat.app.IApplication;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
@@ -25,13 +24,15 @@ public class NetworkClient extends Thread implements AutoCloseable {
     private int _stage = 0;
     private String _requestPath;
     private String _htmlVersion;
+    
+    private int _contentLength;
+    private String _boundary;
+    
     //endregion
     
     /** Class constructor
      * @param socket Client socket */
-    public NetworkClient(Socket socket){
-        _socket = socket;
-    }
+    public NetworkClient(Socket socket){ _socket = socket; }
     
     @Override
     public void close() throws Exception {
@@ -46,7 +47,7 @@ public class NetworkClient extends Thread implements AutoCloseable {
     }
 
     private boolean testLine(String line){
-        
+        System.out.println(line);
         if(_stage == 0) {
             String strArr[] = line.split(" ");
             if(strArr.length != 3) return false;
@@ -58,7 +59,22 @@ public class NetworkClient extends Thread implements AutoCloseable {
                 else return false;
             } else return false;
         } else {
-            
+            if(line.startsWith("Content-Length:") && _contentLength == 0){
+                _contentLength = Integer.parseInt(line.split(":")[1].trim());
+            } else if(line.startsWith("Content-Type:")) {
+                String arrContType[] = line.substring(line.indexOf(":") + 1).split(";");
+                if(arrContType.length > 1) {
+                    if(arrContType[0].trim().equals("multipart/form-data")){
+                        if(arrContType[1].trim().startsWith("boundary")){
+                            _boundary = arrContType[1].substring(arrContType[1].indexOf("=")+1).trim();
+                        } else { 
+                            return false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -68,23 +84,22 @@ public class NetworkClient extends Thread implements AutoCloseable {
     public void run() {
         try {
             // Get the sockets input stream
-            BufferedReader in = new BufferedReader(new InputStreamReader(_socket.getInputStream()));
+            //BufferedReader in = new BufferedReader(new InputStreamReader(_socket.getInputStream()));
             // Attach output stream to string writer
             PrintWriter out = new PrintWriter(_socket.getOutputStream());
             System.out.println("Client connected");
             out.flush();
-            String line = in.readLine();
-            while(line != null & !line.isEmpty()) {
-                System.out.println(line);
-                if(testLine(line)) {
+            String lines[] = new Reader(_socket.getInputStream()).getHeaderLines();
+            
+            for(int i=0; i < lines.length; i ++) {
+                if(testLine(lines[i])) {
                     _stage++;
                 } else {
                     _stage = 0;
                     break;
                 }
-                line = in.readLine();
             }
-
+            
             Date date = new Date();  
             SimpleDateFormat formatter = new SimpleDateFormat("E, dd MMM yyyy HH:mm:ss z");
 
@@ -113,18 +128,26 @@ public class NetworkClient extends Thread implements AutoCloseable {
 
                     try {
                         Class<?> tmpClass = Class.forName(classPath);
-                        System.out.println("Class loaded");
-                        IApplication cls = (IApplication) tmpClass.getDeclaredConstructor().newInstance();
-                        System.out.println("Class cast");
-                        String response = cls.execute(args);
+                        if(IApplication.class.isAssignableFrom(tmpClass)){
+                            IApplication cls = (IApplication) tmpClass.getDeclaredConstructor().newInstance();
+                            byte data[] = null;
+                            if(_contentLength > 0 && _boundary.length() > 0) {
+                                data = new Reader(_socket.getInputStream()).getData(_contentLength, _boundary);
+                            }
+                            
+                            String response = cls.execute(args, data);
 
-                        out.println(_htmlVersion + " 200 OK\n" + 
-                                    "Date: " + formatter.format(date) + "\n" +
-                                    "Server: BirdFlipper\n" +
-                                    "Content-Length: " + response.length() + "\n" +
-                                    "Connection: close\n" +
-                                        "Content-Type: application/json; charset=utf-8\n" +
-                                    "\n" + response);                        
+                            out.println(_htmlVersion + " 200 OK\n" + 
+                                        "Date: " + formatter.format(date) + "\n" +
+                                        "Server: BirdFlipper\n" +
+                                        "Content-Length: " + response.length() + "\n" +
+                                        "Connection: close\n" +
+                                            "Content-Type: application/json; charset=utf-8\n" +
+                                        "\n" + response);                             
+                        }else{
+                             out.println(_htmlVersion + " 404 Not Found");
+                        }
+                       
                         
                     } catch(Exception fex) {
                         out.println(_htmlVersion + " 404 Not Found");
@@ -135,8 +158,6 @@ public class NetworkClient extends Thread implements AutoCloseable {
                 }
             }
             out.flush();
-
-            in.close();
             out.close();        
             close();
         } catch (Exception ex) {

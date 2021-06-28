@@ -40,6 +40,8 @@ public class NetworkInterface extends Thread {
 
     @Override
     public void run(){
+        String path = System.getProperty("user.dir");
+        System.out.println(path);                
         _running = true;
         while(_running) {
             try(ServerSocket serverSocket = new ServerSocket(_port)) {
