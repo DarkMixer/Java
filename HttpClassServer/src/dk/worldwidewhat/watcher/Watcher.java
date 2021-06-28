@@ -25,8 +25,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author lh
+ * File system watcher 
+ * @author cintix.dk
  */
 public class Watcher extends Thread {
     private static WatchService watcher;
